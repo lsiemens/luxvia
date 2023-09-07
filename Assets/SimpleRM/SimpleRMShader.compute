@@ -1,0 +1,173 @@
+// Simple Ray Marching Shader
+
+#pragma kernel CSMain
+
+RWTexture2D<float4> Result;
+
+float4x4 _CameraToWorld;
+float4x4 _CameraInverseProjection;
+float4 _DirectionalLight;
+
+static const float PI = 3.1415926;
+static const int ITERATIONS = 500;
+
+struct Ray {
+    float3 origin;
+    float3 direction;
+};
+
+struct RayHit {
+    float3 position;
+    float distance;
+    float3 normal;
+};
+
+// Constructors
+RayHit CreateRayHit() {
+    RayHit hit;
+    hit.position = float3(0.0f, 0.0f, 0.0f);
+    hit.distance = 1.#INF;
+    hit.normal = float3(0.0f, 0.0f, 0.0f);
+    return hit;
+}
+
+Ray CreateRay(float3 origin, float3 direction) {
+    Ray ray;
+    ray.origin = origin;
+    ray.direction = direction;
+    return ray;
+}
+
+Ray CreateCameraRay(float2 uv) {
+    float3 origin = mul(_CameraToWorld, float4(0.0f, 0.0f, 0.0f, 1.0f)).xyz;
+    
+    float3 direction = mul(_CameraInverseProjection, float4(uv, 0.0f, 1.0f)).xyz;
+    direction = mul(_CameraToWorld, float4(direction, 0.0f)).xyz;
+    direction = normalize(direction);
+    
+    return CreateRay(origin, direction);
+}
+
+// Primitive Manipulations
+void mirror(inout float3 location) {
+    location = abs(location);
+}
+
+void Repeat(inout float3 location, float3 size) {
+    location = fmod(fmod(location, size) + size, size);
+}
+
+// Primitive Singed Distance Functions
+float SphereSDF(float3 location, float4 sphere) {
+    return length(location - sphere.xyz) - sphere.w;
+}
+
+float GroundSDF(float3 location) {
+    return location.y;
+}
+
+// Signed Distance Function
+float SDF(float3 location) {
+    float4 sphere = float4(5.0f, 5.0f, 5.0f, 1.0f);
+    float g = GroundSDF(location);
+    Repeat(location, float3(10.f, 10.f, 10.f));
+    return min(g, SphereSDF(location, sphere));
+}
+
+// Ray Solver
+void MarchRay(Ray ray, inout RayHit bestHit) {
+    float t = 0;
+    for (int i=0; i < ITERATIONS; i++) {
+        float estimate = SDF(ray.origin + t*ray.direction);
+        if (estimate < 0.001f && t < bestHit.distance) {
+            bestHit.distance = t;
+            bestHit.position = ray.origin + t*ray.direction;
+            float xp = (SDF(bestHit.position + float3(0.0001f, 0.0f, 0.0f)) - estimate)/0.0001f;
+            float yp = (SDF(bestHit.position + float3(0.0f, 0.0001f, 0.0f)) - estimate)/0.0001f;
+            float zp = (SDF(bestHit.position + float3(0.0f, 0.0f, 0.0001f)) - estimate)/0.0001f;
+            float3 normal = float3(xp, yp, zp);
+            bestHit.normal = normalize(normal);
+            return;
+        }
+        t += estimate;
+    }
+}
+// Ray Intersections
+/*void IntersectGroundPlane(Ray ray, inout RayHit bestHit) {
+    float t = -ray.origin.y / ray.direction.y;
+    if (t > 0 && t < bestHit.distance) {
+        bestHit.distance = t;
+        bestHit.position = ray.origin + t*ray.direction;
+        bestHit.normal = float3(0.0f, 1.0f, 0.0f);
+    }
+}
+
+void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
+    float3 d = ray.origin - sphere.xyz;
+    float p1 = -dot(ray.direction, d);
+    float p2sqr = p1*p1 + sphere.w*sphere.w - dot(d, d);
+    if (p2sqr < 0) {
+        return;
+    }
+    
+    float p2 = sqrt(p2sqr);
+    float t = p1-p2 > 0? p1 - p2 : p1 + p2;
+    if (t > 0 && t < bestHit.distance) {
+        bestHit.distance = t;
+        bestHit.position = ray.origin + t*ray.direction;
+        bestHit.normal = normalize(bestHit.position - sphere.xyz);
+    }
+}*/
+
+// Ray Tracing
+RayHit Trace(Ray ray) {
+    RayHit bestHit = CreateRayHit();
+    MarchRay(ray, bestHit);
+    //IntersectGroundPlane(ray, bestHit);
+    //IntersectSphere(ray, bestHit, float4(0.0f, 3.0f, 0.0f, 1.0f));
+    return bestHit;
+}
+
+float3 Shade(inout Ray ray, RayHit hit) {
+    if (hit.distance < 1.#INF) {
+        //return float3(1.0f, 1.0f, 1.0f);
+        //bool shadow = false;
+        //Ray shadowRay = CreateRay(hit.position + hit.normal*0.01f, -1*_DirectionalLight.xyz);
+        //RayHit shadowHit = Trace(shadowRay);
+        //if (shadowHit.distance != 1.#INF) {
+        //    return float3(0.01f, 0.01f, 0.01f);
+        //}
+    
+        float3 albedo = float3(0.8f, 0.8f, 0.8f);
+        return float3(0.01f, 0.01f, 0.01f) + saturate(-1*dot(hit.normal, _DirectionalLight.xyz))*_DirectionalLight.w*albedo;
+    } else {
+        return float3(0.0f, 0.0f, 0.0f);
+    }
+}
+
+float3 RenderRay(float2 uv) {
+    Ray ray = CreateCameraRay(uv);
+    
+    RayHit hit = Trace(ray);
+    return Shade(ray, hit);
+}
+
+// Ray Trace camera pixels
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID) {
+    uint width, height;
+    Result.GetDimensions(width, height);
+    
+    // generate uv coords in the range (-1, 1). The cordinate can be orginized into
+    // cells with each uv coordinate in the center of a square cell.
+    int n = 2;
+    float3 samples = float3(0.0f, 0.0f, 0.0f);
+    for (int i=0; i < n; i++) {
+        for (int j=0; j < n; j++) {
+            float2 offset = float2(i + 0.5f, j + 0.5f)/n;
+            float2 uv = float2((id.xy + offset)/float2(width, height)*2.0f - 1.0f);
+            samples += RenderRay(uv);
+        }
+    }
+    Result[id.xy] = float4(samples/(1.0f*n*n), 1.0f);
+}

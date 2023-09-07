@@ -106,6 +106,8 @@ void CSMain (uint3 id : SV_DispatchThreadID) {
     uint width, height;
     Result.GetDimensions(width, height);
     
+    // generate uv coords in the range (-1, 1). The cordinate can be orginized into
+    // cells with each uv coordinate in the center of a square cell.
     float2 uv = float2((id.xy + float2(0.5f, 0.5f))/float2(width, height)*2.0f - 1.0f);
     
     Ray ray = CreateCameraRay(uv);

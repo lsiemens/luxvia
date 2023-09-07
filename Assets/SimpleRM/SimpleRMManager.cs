@@ -1,4 +1,4 @@
-// Simple Ray Tracing Manager
+// Simple Ray Marching Manager
 
 // based on a tutorial by David Kuri which can be found at http://blog.three-eyed-games.com/2018/05/03/gpu-ray-tracing-in-unity-part-1/
 // this component must be attached to a camera.
@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [ExecuteInEditMode, ImageEffectAllowedInSceneView]
-public class SimpleRTManager : MonoBehaviour {
+public class SimpleRMManager : MonoBehaviour {
     public ComputeShader RayTracingShader;
     public Light DirectionalLight;
     
