@@ -18,9 +18,9 @@ accumulated to produce the final approximation.
 ## Gaussian functions
 Each Gaussian term $f(x)$ will be represented as $f(x)=e^{-ax^2 + bx + c}$ where
 $a, b, c \in \mathbb{R}$ and $a \geq 0$. From this function we can compute some
-parameters $x_0$, $f_0$ and $I$, where $x_0 = \frac{b}{2a^2}$ is the location of
-the peak, $f_0 = e^{\frac{b^2}{4a^2} + c}$ is the value at the peak and
-$I=\int_{-\infty}^{\infty}f(x)dx = \frac{f_0 \sqrt{\pi}}{a}$ is the integral of
+parameters $x_0$, $f_0$ and $I$, where $x_0 = \frac{b}{2a}$ is the location of
+the peak, $f_0 = e^{\frac{b^2}{4a} + c}$ is the value at the peak and
+$I=\int_{-\infty}^{\infty}f(x)dx = f_0 \sqrt{\frac{\pi}{a}}$ is the integral of
 the function. Using these parameters the function has an alternative form
-$f(\Delta x) = f_0 e^{-a^2\Delta x^2}$ with $\Delta x = x - x_0$.
+$f(\Delta x) = f_0 e^{-a\Delta x^2}$ with $\Delta x = x - x_0$.
 
