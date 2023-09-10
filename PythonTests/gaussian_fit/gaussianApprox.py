@@ -50,8 +50,11 @@ def find_terms(x, function, index):
     return a, b, c, d, f_0*numpy.sqrt(numpy.pi/a)
 
 num = 10000
-N = 2
+N = 10
 x_range = (5, 2000)
+useBoundary = False
+
+multiplicationTest = False
 
 x = numpy.linspace(*x_range, num)
 
@@ -71,6 +74,8 @@ approximation = 0*x
 for i in range(N - 1):
     df = numpy.gradient(function[i], x)
     indices = numpy.where(df[1:]*df[:-1] <= 0)[0]
+    if useBoundary:
+        indices = indices.tolist() + [1, num - 2]
 
     best_solver = None
     best_I = 0
@@ -110,18 +115,18 @@ dx = x[1] - x[0]
 print("Error: ", numpy.sum(numpy.abs(function[0] - approximation))*dx)
 pyplot.show()
 
-# test multiplication as addition of vectors
+if multiplicationTest:
+    # test multiplication as addition of vectors
+    g_coeff = numpy.array(gParameters(1000, -1, -500))
+    pyplot.plot(x, gaussian(x, *g_coeff))
+    pyplot.show()
 
-g_coeff = numpy.array(gParameters(1000, -1, -500))
-pyplot.plot(x, gaussian(x, *g_coeff))
-pyplot.show()
+    coefficients += g_coeff
+    approximation = 0*x
+    for i in range(N-1):
+        approximation += gaussian(x, *coefficients[i])
 
-coefficients += g_coeff
-approximation = 0*x
-for i in range(N-1):
-    approximation += gaussian(x, *coefficients[i])
-
-pyplot.plot(x, function[0]*gaussian(x, *g_coeff), label="Original")
-pyplot.plot(x, approximation, label="gaussian sum")
-pyplot.legend()
-pyplot.show()
+    pyplot.plot(x, function[0]*gaussian(x, *g_coeff), label="Original")
+    pyplot.plot(x, approximation, label="gaussian sum")
+    pyplot.legend()
+    pyplot.show()

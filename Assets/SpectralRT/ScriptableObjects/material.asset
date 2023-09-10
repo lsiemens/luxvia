@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f8369a40e99eb3879cf139fdcd688a3, type: 3}
+  m_Name: material
+  m_EditorClassIdentifier: 
+  tempurature: 3000
+  numberOfGaussians: 5
+  useEndpoints: 0
+  plotParameters:
+    nPoints: 719
+    xMin: 300
+    xMax: 1000
+    yMin: -1.8379556e-18
+    yMax: 9.952489e-16
