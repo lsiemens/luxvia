@@ -19,11 +19,16 @@ public class PhysicalObjectManager : MonoBehaviour {
     }
     
     public void buildObjectList() {
+        materialList = new List<PhysicalMaterial>();
         spheres = (Sphere[])GameObject.FindObjectsOfType(typeof(Sphere));
         disks = (Disk[])GameObject.FindObjectsOfType(typeof(Disk));
         
         for (int i=0; i < spheres.Length; i++) {
             PhysicalMaterial material = spheres[i].material;
+            if (material == null) {
+                Debug.LogError("Loading object \"" + disks[i].name + "\": No material found.");
+            }
+
             int index = NewMaterialIndex(material);
             if (index < 0) {
                 materialList.Add(material);
@@ -35,6 +40,10 @@ public class PhysicalObjectManager : MonoBehaviour {
         
         for (int i=0; i < disks.Length; i++) {
             PhysicalMaterial material = disks[i].material;
+            if (material == null) {
+                Debug.LogError("Loading object \"" + disks[i].name + "\": No material found.");
+            }
+
             int index = NewMaterialIndex(material);
             if (index < 0) {
                 materialList.Add(material);

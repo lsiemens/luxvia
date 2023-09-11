@@ -3,7 +3,7 @@
 // based on a tutorial by David Kuri which can be found at http://blog.three-eyed-games.com/2018/05/03/gpu-ray-tracing-in-unity-part-1/
 // this component must be attached to a camera.
 
-//#define INEDITMODE
+#define INEDITMODE
 
 using System.Collections;
 using System.Collections.Generic;
@@ -16,14 +16,14 @@ using UnityEngine;
 #endif
 public class SpectralRTManager : MonoBehaviour {
     public ComputeShader RayTracingShader;
+    public CameraFilterManager filterManager;
+    public PhysicalObjectManager objectManager;
     public Light DirectionalLight;
     
     public SRT.GaussianApproximation lightMaterial;
     
     private RenderTexture _target;
     private Camera _camera;
-    private CameraFilterManager _filterManager;
-    private PhysicalObjectManager _objectManager;
     
     // Send all of the gaussians to the compute shader in a single list/ComputeBuffer.
     // Each material simply specifies the index range to use from the gaussian list.
@@ -72,14 +72,10 @@ public class SpectralRTManager : MonoBehaviour {
     
     private void Awake() {
         _camera = GetComponent<Camera>();
-        _objectManager = GetComponent<PhysicalObjectManager>();
-        _objectManager.buildObjectList();
-        
-        _filterManager = GetComponent<CameraFilterManager>();
-
     }
     
     private void SetUpScene() {
+        objectManager.buildObjectList();
         List<Material> materials = new List<Material>();
         List<Sphere> spheres = new List<Sphere>();
         List<Disk> disks = new List<Disk>();
@@ -91,16 +87,16 @@ public class SpectralRTManager : MonoBehaviour {
         
         // Pack camera filter
         int start = 0, end = 0;
-        gaussianPacker.AddGaussian(_filterManager.cameraFilter.redChannel, ref start);
-        gaussianPacker.AddGaussian(_filterManager.cameraFilter.greenChannel, ref start);
-        gaussianPacker.AddGaussian(_filterManager.cameraFilter.blueChannel, ref start);
+        gaussianPacker.AddGaussian(filterManager.cameraFilter.redChannel, ref start);
+        gaussianPacker.AddGaussian(filterManager.cameraFilter.greenChannel, ref start);
+        gaussianPacker.AddGaussian(filterManager.cameraFilter.blueChannel, ref start);
         
         // Pack object materials
         Material materialGPU;
         SRT.GaussianApproximation materialApproximation;
-        for (int materialID=0; materialID < _objectManager.materialList.Count; materialID++) {
+        for (int materialID=0; materialID < objectManager.materialList.Count; materialID++) {
             materialGPU = new Material();
-            materialApproximation = _objectManager.materialList[materialID].approximateBlackBody;
+            materialApproximation = objectManager.materialList[materialID].approximateBlackBody;
             
             gaussianPacker.AddGaussianApproximation(materialApproximation, ref start, ref end);
             materialGPU.start = start;
@@ -112,9 +108,9 @@ public class SpectralRTManager : MonoBehaviour {
         // Pack spheres
         Sphere sphereGPU;
         PhysicalObject physicalObject;
-        for (int i=0; i < _objectManager.spheres.Length; i++) {
+        for (int i=0; i < objectManager.spheres.Length; i++) {
             sphereGPU = new Sphere();
-            physicalObject = _objectManager.spheres[i];
+            physicalObject = objectManager.spheres[i];
 
             sphereGPU.origin = physicalObject.gameObject.transform.position;
             sphereGPU.radius = physicalObject.gameObject.transform.localScale.x; // all three should be the same
@@ -124,9 +120,9 @@ public class SpectralRTManager : MonoBehaviour {
         
         // Pack Disks
         Disk diskGPU;
-        for (int i=0; i < _objectManager.disks.Length; i++) {
+        for (int i=0; i < objectManager.disks.Length; i++) {
             diskGPU = new Disk();
-            physicalObject = _objectManager.disks[i];
+            physicalObject = objectManager.disks[i];
 
             diskGPU.origin = physicalObject.gameObject.transform.position;
             diskGPU.normal = physicalObject.gameObject.transform.up;

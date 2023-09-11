@@ -54,8 +54,6 @@ public class PhysicalMaterialWindow : EditorWindow {
         Vector2[] blackBodyPoints = new Vector2[N];
         Vector2[] approximationPoints = new Vector2[N];
         Vector2[] errorPoints = new Vector2[N];
-        //Vector2 peak = new Vector2(0, 0);
-        float _y = 0;
         for (int i=0; i < N; i++) {
             x = xMin + i*dx;
             

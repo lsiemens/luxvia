@@ -398,6 +398,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   RayTracingShader: {fileID: 7200000, guid: 2b3e42c8a5ff8419985ca5628f442376, type: 3}
+  filterManager: {fileID: 963194231}
+  objectManager: {fileID: 963194230}
   DirectionalLight: {fileID: 705507994}
   lightMaterial:
     components: []
