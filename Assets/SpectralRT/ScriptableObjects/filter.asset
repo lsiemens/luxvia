@@ -14,19 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   redChannel:
     x_0: 691.4
-    f_0: 1
-    I: 71.26
+    f_0: 1e+11
+    I: 2e+13
   greenChannel:
     x_0: 574.67
-    f_0: 1
-    I: 75
+    f_0: 1e+11
+    I: 2e+13
   blueChannel:
     x_0: 450
-    f_0: 1
-    I: 75
+    f_0: 1e+11
+    I: 2e+13
   plotParameters:
     nPoints: 718
     xMin: 0
     xMax: 1000
     yMin: -1
-    yMax: 2
+    yMax: 1e+11

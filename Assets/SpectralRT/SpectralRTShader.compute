@@ -12,16 +12,43 @@ float4 _DirectionalLight;
 
 static const float PI = 3.1415926;
 
+// Compute Buffer structs
+struct Material {
+    int start;
+    int end;
+};
+
+struct Sphere {
+    float3 origin;
+    float radius;
+    int materialID;
+};
+
+struct Disk {
+    float3 origin;
+    float3 normal;
+    float radius;
+    int materialID;
+};
+
+// Ray tracing structs
 struct Ray {
     float3 origin;
     float3 direction;
+    float4 spectrum;
 };
 
 struct RayHit {
     float3 position;
     float distance;
     float3 normal;
+    int materialID;
 };
+
+StructuredBuffer<Material> _Materials;
+StructuredBuffer<Sphere> _Spheres;
+StructuredBuffer<Disk> _Disks;
+StructuredBuffer<float4> _Gaussians;
 
 // Constructors
 RayHit CreateRayHit() {
@@ -29,14 +56,39 @@ RayHit CreateRayHit() {
     hit.position = float3(0.0f, 0.0f, 0.0f);
     hit.distance = 1.#INF;
     hit.normal = float3(0.0f, 0.0f, 0.0f);
+    hit.materialID = 0;
     return hit;
 }
 
-Ray CreateRay(float3 origin, float3 direction) {
+Ray CreateRay(float3 origin, float3 direction, float4 spectrum) {
     Ray ray;
     ray.origin = origin;
     ray.direction = direction;
+    ray.spectrum = spectrum;
     return ray;
+}
+
+float4 GetMaterial(int materialID) {
+    uint count, stride, i;
+    _Materials.GetDimensions(count, stride);
+    Material matRange = _Materials[materialID];
+    _Gaussians.GetDimensions(count, stride);
+    return _Gaussians[matRange.start];
+}
+
+float4 GetGaussian(int index) {
+    uint count, stride, i;
+    _Gaussians.GetDimensions(count, stride);
+    return _Gaussians[index];
+}
+
+float IntegrateSpectra(float4 spectra) {
+    float f_0 = exp(spectra.y*spectra.y/(4*spectra.x) + spectra.z);
+    if (fmod(fmod(spectra.w, 2.f) + 2.f, 2.f) > 0.5f) {
+        return -f_0*sqrt(PI/spectra.x);
+    } else {
+        return f_0*sqrt(PI/spectra.x);
+    }
 }
 
 Ray CreateCameraRay(float2 uv) {
@@ -46,23 +98,27 @@ Ray CreateCameraRay(float2 uv) {
     direction = mul(_CameraToWorld, float4(direction, 0.0f)).xyz;
     direction = normalize(direction);
     
-    return CreateRay(origin, direction);
+    return CreateRay(origin, direction, float4(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 // Ray Intersections
-void IntersectGroundPlane(Ray ray, inout RayHit bestHit) {
-    float t = -ray.origin.y / ray.direction.y;
-    if (t > 0 && t < bestHit.distance) {
+// TODO add proper Disk intersection
+void IntersectDisk(Ray ray, inout RayHit bestHit, Disk disk) {
+    float t = dot(disk.origin - ray.origin, disk.normal)/dot(ray.direction, disk.normal);
+    float3 intersection = ray.origin + t*ray.direction;
+    float R2 = dot(intersection - disk.origin, intersection - disk.origin);
+    if (t > 0 && t < bestHit.distance && R2 < disk.radius*disk.radius) {
         bestHit.distance = t;
-        bestHit.position = ray.origin + t*ray.direction;
-        bestHit.normal = float3(0.0f, 1.0f, 0.0f);
+        bestHit.position = intersection;
+        bestHit.normal = disk.normal;
+        bestHit.materialID = disk.materialID;
     }
 }
 
-void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
-    float3 d = ray.origin - sphere.xyz;
+void IntersectSphere(Ray ray, inout RayHit bestHit, Sphere sphere) {
+    float3 d = ray.origin - sphere.origin;
     float p1 = -dot(ray.direction, d);
-    float p2sqr = p1*p1 + sphere.w*sphere.w - dot(d, d);
+    float p2sqr = p1*p1 + sphere.radius*sphere.radius - dot(d, d);
     if (p2sqr < 0) {
         return;
     }
@@ -72,31 +128,43 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
     if (t > 0 && t < bestHit.distance) {
         bestHit.distance = t;
         bestHit.position = ray.origin + t*ray.direction;
-        bestHit.normal = normalize(bestHit.position - sphere.xyz);
+        bestHit.normal = normalize(bestHit.position - sphere.origin);
+        bestHit.materialID = sphere.materialID;
     }
 }
 
 // Ray Tracing
 RayHit Trace(Ray ray) {
     RayHit bestHit = CreateRayHit();
-    IntersectGroundPlane(ray, bestHit);
-    IntersectSphere(ray, bestHit, float4(0.0f, 3.0f, 0.0f, 1.0f));
+    
+    // Disk intersection
+    uint numObjects, stride, i;
+    _Disks.GetDimensions(numObjects, stride);
+    for (i=0; i < numObjects; i++) {
+        IntersectDisk(ray, bestHit, _Disks[i]);
+    }
+    
+    // Sphere intersection
+    _Spheres.GetDimensions(numObjects, stride);
+    for (i=0; i < numObjects; i++) {
+        IntersectSphere(ray, bestHit, _Spheres[i]);
+    }
     return bestHit;
 }
 
-float3 Shade(inout Ray ray, RayHit hit) {
+float4 Shade(inout Ray ray, RayHit hit) {
     if (hit.distance < 1.#INF) {
         bool shadow = false;
-        Ray shadowRay = CreateRay(hit.position + hit.normal*0.001f, -1*_DirectionalLight.xyz);
+        Ray shadowRay = CreateRay(hit.position + hit.normal*0.001f, -1*_DirectionalLight.xyz, float4(0.0f, 0.0f, 0.0f, 0.0f));
         RayHit shadowHit = Trace(shadowRay);
         if (shadowHit.distance != 1.#INF) {
-            return float3(0.0f, 0.0f, 0.0f);
+            return float4(0.0f, 0.0f, -1.#INF, 0.0f);
         }
-    
-        float3 albedo = float3(0.8f, 0.8f, 0.8f);
-        return saturate(-1*dot(hit.normal, _DirectionalLight.xyz))*_DirectionalLight.w*albedo;
+        
+        float4 geometricFactor = log(saturate(-1*dot(hit.normal, _DirectionalLight.xyz)))*float4(0.0f, 0.0f, 1.0f, 0.0f);
+        return geometricFactor + GetMaterial(hit.materialID);
     } else {
-        return float3(0.0f, 0.0f, 0.0f);
+        return float4(0.0f, 0.0f, -1.#INF, 0.0f);
     }
 }
 
@@ -113,6 +181,15 @@ void CSMain (uint3 id : SV_DispatchThreadID) {
     Ray ray = CreateCameraRay(uv);
     
     RayHit hit = Trace(ray);
-    float3 color = Shade(ray, hit);
-    Result[id.xy] = float4(color, 1.0f);
+    float4 lightSpectra = Shade(ray, hit);
+    // first 3 gaussians contian the camera filters
+    float rBand = IntegrateSpectra(GetGaussian(0) + lightSpectra);
+    float gBand = IntegrateSpectra(GetGaussian(1) + lightSpectra);
+    float bBand = IntegrateSpectra(GetGaussian(2) + lightSpectra);
+    
+    //float rBand = IntegrateSpectra(log(GetGaussian(0) + lightSpectra));
+    //float gBand = IntegrateSpectra(log(GetGaussian(1) + lightSpectra));
+    //float bBand = IntegrateSpectra(log(GetGaussian(2) + lightSpectra));
+    
+    Result[id.xy] = float4(rBand, gBand, bBand, 1.0f);
 }

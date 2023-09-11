@@ -3,20 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace SRT {
+    [System.Serializable]
     public class GaussianApproximation {
         public List<GaussianCoefficients> components;
-        public BasicGraph plot;
+        //public BasicGraph plot;
         
         public GaussianApproximation() {
             components = new List<GaussianCoefficients>();
         }
-        
-        //public void OnValidate() {        
-        //    foreach (Gaussian gaussian in components) {
-        //        gaussian.UpdateGraph();
-        //    }
-        //    plot.update_graph(Evaluate);
-        //}
         
         public float Evaluate(float x) {
             float result =0f;
@@ -24,6 +18,19 @@ namespace SRT {
                 result += gaussian.Evaluate(x);
             }
             return result;
+        }
+        
+        public bool Equals(GaussianApproximation other) {
+            if (components.Count != other.components.Count) {
+                return false;
+            }
+            
+            for (int i=0; i < components.Count; i++) {
+                if (!components[i].Equals(other.components[i])) {
+                    return false;
+                }
+            }
+            return true;
         }
         
         // Pack gaussians in a form sutible for use in the compute shader

@@ -8,6 +8,7 @@ namespace SRT {
     public interface Gaussian {
         public float Evaluate(float x);
         public Vector4 PackGaussian();
+        public bool Equals(Gaussian gaussian);
     }
 
     // load coefficients of the Gaussian e^(-ax^2 + bx + c + i*pi*d) with a >= 0
@@ -31,6 +32,10 @@ namespace SRT {
             b = _b;
             c = _c;
             d = _d;
+        }
+        
+        public bool Equals(Gaussian other) {
+            return PackGaussian().Equals(other.PackGaussian());
         }
         
         public float Evaluate(float x) {
@@ -62,6 +67,10 @@ namespace SRT {
             x_0 = _x_0;
             f_0 = _f_0;
             I = _I;
+        }
+        
+        public bool Equals(Gaussian other) {
+            return PackGaussian().Equals(other.PackGaussian());
         }
         
         public float Evaluate(float x) {

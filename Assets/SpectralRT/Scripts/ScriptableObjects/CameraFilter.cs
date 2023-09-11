@@ -10,11 +10,5 @@ namespace SRT {
         public GaussianParameters blueChannel;
         
         public PlotParameters plotParameters;
-        
-        //public void OnValidate() {
-        //    redChannel.UpdateGraph();
-        //    greenChannel.UpdateGraph();
-        //    blueChannel.UpdateGraph();
-        //}
     }
 }

@@ -12,12 +12,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9f8369a40e99eb3879cf139fdcd688a3, type: 3}
   m_Name: material
   m_EditorClassIdentifier: 
-  tempurature: 3000
+  tempurature: 5500
   numberOfGaussians: 5
-  useEndpoints: 0
+  useEndpoints: 1
   plotParameters:
     nPoints: 719
     xMin: 300
     xMax: 1000
-    yMin: -1.8379556e-18
-    yMax: 9.952489e-16
+    yMin: -2.0612874e-14
+    yMax: 2.0612874e-14
+  approximateBlackBody:
+    components:
+    - a: 0.000000051676903
+      b: -0.0020744547
+      c: -30.172695
+      d: 0
+    - a: 0.000014262312
+      b: 0.0030413095
+      c: -30.639612
+      d: 1
+    - a: 0.000073037925
+      b: 0.07853137
+      c: -55.96013
+      d: 1
+    - a: 0.00019631175
+      b: 0.26769122
+      c: -127.45208
+      d: 1
+    - a: 0.0003148837
+      b: 0.2796575
+      c: -99.2411
+      d: 1

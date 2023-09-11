@@ -20,6 +20,10 @@ namespace SRT {
             return approximateBlackBody.Evaluate(x);
         }
         
+        public bool Equals(PhysicalMaterial other) {
+            return approximateBlackBody.Equals(other.approximateBlackBody);
+        }
+        
         public void FindApproximation() {
             int N = plotParameters.nPoints;
             float xMin = plotParameters.xMin;
