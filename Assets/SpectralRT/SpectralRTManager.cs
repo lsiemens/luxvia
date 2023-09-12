@@ -2,7 +2,6 @@
 
 // based on a tutorial by David Kuri which can be found at http://blog.three-eyed-games.com/2018/05/03/gpu-ray-tracing-in-unity-part-1/
 // this component must be attached to a camera.
-
 #define INEDITMODE
 
 using System.Collections;
@@ -16,30 +15,31 @@ using UnityEngine;
 #endif
 public class SpectralRTManager : MonoBehaviour {
     public ComputeShader RayTracingShader;
+    
     public CameraFilterManager filterManager;
     public PhysicalObjectManager objectManager;
     public Light DirectionalLight;
     
-    public SRT.GaussianApproximation lightMaterial;
-    
+    private Material AverageSamplesMaterial;
     private RenderTexture _target;
     private Camera _camera;
+    private float _currentSample = 0f;
     
     // Send all of the gaussians to the compute shader in a single list/ComputeBuffer.
     // Each material simply specifies the index range to use from the gaussian list.
     // Then send a list/ComputeBuffer of materials as well.
-    struct Material {
+    struct GPUMaterial {
         public int start;
         public int end;
     }
     
-    struct Sphere {
+    struct GPUSphere {
         public Vector3 origin;
         public float radius;
         public int materialID;
     }
     
-    struct Disk {
+    struct GPUDisk {
         public Vector3 origin;
         public Vector3 normal;
         public float radius;
@@ -74,11 +74,22 @@ public class SpectralRTManager : MonoBehaviour {
         _camera = GetComponent<Camera>();
     }
     
+    public void Update() {
+        ManageSampleResets();
+    }
+    
+    public void ManageSampleResets() {
+        if (_camera.transform.hasChanged) {
+            _currentSample = 0f;
+            _camera.transform.hasChanged = false;
+        }
+    }
+    
     private void SetUpScene() {
         objectManager.buildObjectList();
-        List<Material> materials = new List<Material>();
-        List<Sphere> spheres = new List<Sphere>();
-        List<Disk> disks = new List<Disk>();
+        List<GPUMaterial> materials = new List<GPUMaterial>();
+        List<GPUSphere> spheres = new List<GPUSphere>();
+        List<GPUDisk> disks = new List<GPUDisk>();
         List<Vector4> gaussians; // These will be packed in the Gaussian Packer
         
         // first 3 gaussians are the r, g and b camera filters
@@ -92,10 +103,10 @@ public class SpectralRTManager : MonoBehaviour {
         gaussianPacker.AddGaussian(filterManager.cameraFilter.blueChannel, ref start);
         
         // Pack object materials
-        Material materialGPU;
+        GPUMaterial materialGPU;
         SRT.GaussianApproximation materialApproximation;
         for (int materialID=0; materialID < objectManager.materialList.Count; materialID++) {
-            materialGPU = new Material();
+            materialGPU = new GPUMaterial();
             materialApproximation = objectManager.materialList[materialID].approximateBlackBody;
             
             gaussianPacker.AddGaussianApproximation(materialApproximation, ref start, ref end);
@@ -106,10 +117,10 @@ public class SpectralRTManager : MonoBehaviour {
         gaussians = gaussianPacker.gaussians;
         
         // Pack spheres
-        Sphere sphereGPU;
+        GPUSphere sphereGPU;
         PhysicalObject physicalObject;
         for (int i=0; i < objectManager.spheres.Length; i++) {
-            sphereGPU = new Sphere();
+            sphereGPU = new GPUSphere();
             physicalObject = objectManager.spheres[i];
 
             sphereGPU.origin = physicalObject.gameObject.transform.position;
@@ -119,9 +130,9 @@ public class SpectralRTManager : MonoBehaviour {
         }
         
         // Pack Disks
-        Disk diskGPU;
+        GPUDisk diskGPU;
         for (int i=0; i < objectManager.disks.Length; i++) {
-            diskGPU = new Disk();
+            diskGPU = new GPUDisk();
             physicalObject = objectManager.disks[i];
 
             diskGPU.origin = physicalObject.gameObject.transform.position;
@@ -131,16 +142,16 @@ public class SpectralRTManager : MonoBehaviour {
             disks.Add(diskGPU);
         }
         
-        int sizeofMaterial = 2*sizeof(int);
-        _materialBuffer = new ComputeBuffer(materials.Count, sizeofMaterial);
+        int sizeofGPUMaterial = 2*sizeof(int);
+        _materialBuffer = new ComputeBuffer(materials.Count, sizeofGPUMaterial);
         _materialBuffer.SetData(materials);
         
-        int sizeofSphere = 4*sizeof(float) + sizeof(int);
-        _sphereBuffer = new ComputeBuffer(spheres.Count, sizeofSphere);
+        int sizeofGPUSphere = 4*sizeof(float) + sizeof(int);
+        _sphereBuffer = new ComputeBuffer(spheres.Count, sizeofGPUSphere);
         _sphereBuffer.SetData(spheres);
         
-        int sizeofDisk = 7*sizeof(float) + sizeof(int);
-        _diskBuffer = new ComputeBuffer(disks.Count, sizeofDisk);
+        int sizeofGPUDisk = 7*sizeof(float) + sizeof(int);
+        _diskBuffer = new ComputeBuffer(disks.Count, sizeofGPUDisk);
         _diskBuffer.SetData(disks);
         
         int sizeofVector4 = 4*sizeof(float);
@@ -159,12 +170,15 @@ public class SpectralRTManager : MonoBehaviour {
         RayTracingShader.SetBuffer(0, "_Spheres", _sphereBuffer);
         RayTracingShader.SetBuffer(0, "_Disks", _diskBuffer);
         RayTracingShader.SetBuffer(0, "_Gaussians", _gaussianBuffer);
+        
+        AverageSamplesMaterial.SetFloat("_Sample", _currentSample);
     }
     
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
-        InitRenderTexture();
+        InitalizeRender();
         #if INEDITMODE
         SetUpScene();
+        ManageSampleResets();
         #endif
         SetShaderParameters();
         
@@ -176,10 +190,11 @@ public class SpectralRTManager : MonoBehaviour {
         int threadGroupsY = Mathf.CeilToInt(Screen.height / 8.0f);
         RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
         
-        Graphics.Blit(_target, destination);
+        Graphics.Blit(_target, destination, AverageSamplesMaterial);
+        _currentSample++;
     }
     
-    private void InitRenderTexture() {
+    private void InitalizeRender() {
         if (_target == null || _target.width != Screen.width || _target.height != Screen.height) {
             if (_target != null) {
                 _target.Release();
@@ -188,6 +203,10 @@ public class SpectralRTManager : MonoBehaviour {
             _target = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
             _target.enableRandomWrite = true;
             _target.Create();
+            
+            if (AverageSamplesMaterial == null) {
+                AverageSamplesMaterial = new Material(Shader.Find("Hidden/AverageSamplesMaterial"));
+            }
         }
     }
 }

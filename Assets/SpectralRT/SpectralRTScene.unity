@@ -401,8 +401,6 @@ MonoBehaviour:
   filterManager: {fileID: 963194231}
   objectManager: {fileID: 963194230}
   DirectionalLight: {fileID: 705507994}
-  lightMaterial:
-    components: []
 --- !u!114 &963194230
 MonoBehaviour:
   m_ObjectHideFlags: 0
